@@ -20,6 +20,7 @@
     "test:unit": "mocha --parallel -r ts-node/register test/**/*.test.ts",
     "test:examples": "npm run test:wtest -- --root language/test/examples",
     "test:sanity": "npm run test:wtest -- --root language/test/sanity",
+    "test:validations": "mocha --parallel -r ts-node/register test/validator.test.ts",
     "test:game": "npm run test:wtest -- --root test/game",
     "test:wtest": "mocha --delay -t 10000 -r ts-node/register test/wtest.ts",
     "prepublishOnly": "npm run build && npm test",
