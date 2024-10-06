@@ -19,6 +19,7 @@ const ALL_OPERATORS = [
 export const MALFORMED_ENTITY = 'malformedEntity'
 export const MALFORMED_MEMBER = 'malformedMember'
 export const MALFORMED_SENTENCE = 'malformedSentence'
+export const MALFORMED_MESSAGE_SEND = 'malformedMessageSend'
 
 export class ParseError implements BaseProblem {
   constructor(public code: Name, public sourceMap: SourceMap) { }
@@ -225,7 +226,7 @@ export const Body: Parser<BodyNode> = node(BodyNode)(() =>
     sentences: alt(
       Sentence.skip(__),
       comment('inner').wrap(_, _),
-      sentenceError).many(),
+    ).many(),
   }).wrap(key('{'), lastKey('}')).map(recover)
 )
 
@@ -448,14 +449,20 @@ const prefixMessageChain: Parser<ExpressionNode> = lazy(() =>
   )
 )
 
-const postfixMessageChain: Parser<ExpressionNode> = lazy(() =>
-  messageChain(
-    primaryExpression,
-    key('.').then(name),
-    alt(unamedArguments, Closure.times(1))
-  )
+// TODO Esto por ahora sólo parsea no-mensajes, hay que incluir también las opciones correctas y sumar a la messageChain.
+const postfixMessageChain: Parser<ExpressionNode> = lazy(() => 
+  seq(name, unamedArguments).map(([message, args]) => new SendNode({ 
+    receiver: null, 
+    message, 
+    args
+  }))
+  .mark().map(({ value, start, end }) => ({
+    ...value, 
+    // TODO sería mejor que el sourceMap le ponga el error sólo al message y no a toda la no-expresión.
+    problems: [new ParseError(MALFORMED_MESSAGE_SEND, buildSourceMap(start, end))] 
+  }))
 )
-
+  
 const messageChain = (receiver: Parser<ExpressionNode>, message: Parser<Name>, args: Parser<List<ExpressionNode>>): Parser<ExpressionNode> => lazy(() =>
   seq(
     index,
@@ -495,7 +502,6 @@ const primaryExpression: Parser<ExpressionNode> = lazy(() => {
     ).map(([metadata, expression]) => expression.copy({ metadata: [...expression.metadata, ...metadata] }))
   )
 })
-
 
 export const Self: Parser<SelfNode> = node(SelfNode)(() =>
   key(KEYWORDS.SELF).result({})
